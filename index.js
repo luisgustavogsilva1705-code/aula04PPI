@@ -1,5 +1,7 @@
 
 import express, { response } from "express";
+import cookieParser from "cookie-parser";
+import session from "express-session";
 
 const host ="0.0.0.0";
 const porta = 3000;
@@ -7,12 +9,26 @@ var lista_login=[];
 const server = express();
 var lista_fornecedores=[];
 
+var loginUsuario = false;
+
+server.use(session({
+    secret: "Ch4veSecret4",
+    resave: true,
+    saveUninitialized: true,
+    cookie:{
+        maxAge: 1000* 60 *15
+    }
+}));
+
 server.use(express.urlencoded({extended: true}));
 server.use(express.json());
+server.use(cookieParser());
 
 
 
 server.get("/",(requisicao, resposta)=>{
+
+
     resposta.send(`
 
             <!DOCTYPE html>
@@ -53,22 +69,22 @@ server.get("/",(requisicao, resposta)=>{
 
 });
 
-server.post('/', (requisicao, resposta)=>{
-    const Email = requisicao.body.Email;
-    const senha = requisicao.body.senha;
+server.post("/",(requisicao,resposta)=>{
+    const {Email, senha} = requisicao.body;
 
-    let senha_correta = "1234";
-    let email_correto = 'admin@email.com';
-    if(Email === email_correto && senha === senha_correta)
+    if(Email === "admin@email.com" && senha === "admin")
     {
-        lista_login.push({Email,senha});
+        requisicao.session.loginUsuario =   {
+                                                logado: true,
+                                                loginUsuario: "Administrador"
+                                            };
         resposta.redirect("/telaMenu");
     }
     else
-    {  
-        let conteudo =
-        `
-        <!DOCTYPE html>
+    {
+        resposta.write(
+            `
+            <!DOCTYPE html>
                 <html>
                 <head>
                     <meta charset="UTF-8">
@@ -80,58 +96,138 @@ server.post('/', (requisicao, resposta)=>{
                     
                     <form method="POST" action="/" style="background-color: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 320px; text-align: center;">
                     <h2 style="margin-bottom: 25px; color: #333;">Login</h2>
-                    <p>(admin@email.com<br>senha:1234)</p>
+                    <p>(admin@email.com<br>senha: 1234)</p>
 
                     <div style="margin-bottom: 20px; text-align: left;">
                         <label for="exampleInputEmail1" style="display: block; font-weight: bold; margin-bottom: 6px; color: #555;">Email</label>
-                        <input type="email" id="exampleInputEmail1" name="Email" value="${Email}"
+                        <input type="email" id="exampleInputEmail1" name="Email" 
                         style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
-                    </div>`
-        if(Email !== email_correto)
-        {
-            conteudo+=
-            `
-                <div>
-                    <p style="color: red; font-size: 15px" >Email incorreto</p>
-                </div>
-            `
-        }
-        conteudo+=`
+                    </div>
+
                     <div style="margin-bottom: 20px; text-align: left;">
                         <label for="exampleInputPassword1" style="display: block; font-weight: bold; margin-bottom: 6px; color: #555;">Senha</label>
                         <input type="password" id="exampleInputPassword1" name="senha" 
                         style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
-                    </div>`
-        if(senha !== senha_correta)
-        {
-            conteudo+=
-            `
-                <div>
-                    <p style="color: red; font-size: 15px" >Senha incorreto</p>
-                </div>
-            `
-        }
-        conteudo+=`
+                    </div>
+
                     <button type="submit"
                         style="width: 100%; background-color: #2E8B57; color: white; border: none; padding: 10px 0; border-radius: 6px; font-size: 16px; cursor: pointer; transition: background-color 0.2s;">
                         Entrar
                     </button>
+                    
+                    <div>
+                        <p style="color: red;"> Usuário ou Senha inválidos </p>
+                    </div>
+
                     </form>
 
                 </body>
                 </html>
-        `
-        resposta.send(conteudo);
+
+            `
+        )
+    }
+});
+
+function vereficaLogin(requisicao, resposta, proximo){
+    if(requisicao.session?.loginUsuario?.logado)
+    {
+        proximo();
+    }
+    else
+    {
+        resposta.redirect("/");
     }
 
-});
+}
 
-server.post("/telaMenu", (req, res) => {
-  res.redirect("/telaMenu");
-});
+// server.post('/', (requisicao, resposta)=>{
+//     const Email = requisicao.body.Email;
+//     const senha = requisicao.body.senha;
 
-server.get("/telaMenu",(requisicao, resposta)=>{
-    resposta.send(`
+//     let senha_correta = "1234";
+//     let email_correto = 'admin@email.com';
+//     if(Email === email_correto && senha === senha_correta)
+//     {
+//         lista_login.push({Email,senha});
+//         resposta.redirect("/telaMenu");
+//     }
+//     else
+//     {  
+//         let conteudo =
+//         `
+//         <!DOCTYPE html>
+//                 <html>
+//                 <head>
+//                     <meta charset="UTF-8">
+//                     <title>Login</title>
+//                 </head>
+
+//                 <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f0f2f5; height: 100vh; display: flex; align-items: center; justify-content: center;">
+
+                    
+//                     <form method="POST" action="/" style="background-color: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 320px; text-align: center;">
+//                     <h2 style="margin-bottom: 25px; color: #333;">Login</h2>
+//                     <p>(admin@email.com<br>senha:1234)</p>
+
+//                     <div style="margin-bottom: 20px; text-align: left;">
+//                         <label for="exampleInputEmail1" style="display: block; font-weight: bold; margin-bottom: 6px; color: #555;">Email</label>
+//                         <input type="email" id="exampleInputEmail1" name="Email" value="${Email}"
+//                         style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+//                     </div>`
+//         if(Email !== email_correto)
+//         {
+//             conteudo+=
+//             `
+//                 <div>
+//                     <p style="color: red; font-size: 15px" >Email incorreto</p>
+//                 </div>
+//             `
+//         }
+//         conteudo+=`
+//                     <div style="margin-bottom: 20px; text-align: left;">
+//                         <label for="exampleInputPassword1" style="display: block; font-weight: bold; margin-bottom: 6px; color: #555;">Senha</label>
+//                         <input type="password" id="exampleInputPassword1" name="senha" 
+//                         style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+//                     </div>`
+//         if(senha !== senha_correta)
+//         {
+//             conteudo+=
+//             `
+//                 <div>
+//                     <p style="color: red; font-size: 15px" >Senha incorreto</p>
+//                 </div>
+//             `
+//         }
+//         conteudo+=`
+//                     <button type="submit"
+//                         style="width: 100%; background-color: #2E8B57; color: white; border: none; padding: 10px 0; border-radius: 6px; font-size: 16px; cursor: pointer; transition: background-color 0.2s;">
+//                         Entrar
+//                     </button>
+//                     </form>
+
+//                 </body>
+//                 </html>
+//         `
+//         resposta.send(conteudo);
+//     }
+
+// });
+
+// server.post("/telaMenu",  vereficaLogin,  (req, res) => {
+//   res.redirect("/telaMenu");
+// });
+
+server.get("/telaMenu",  vereficaLogin,  (requisicao, resposta)=>{
+
+    let lastAcess = requisicao.cookies?.lastAcess;
+
+    const data = new Date();
+    resposta.cookie("lastAcess",data.toLocaleString());
+
+
+    resposta.setHeader("Content-Type", "text/html");
+    resposta.write(`
         <!DOCTYPE html>
         <html>
             <head>
@@ -159,15 +255,23 @@ server.get("/telaMenu",(requisicao, resposta)=>{
             <br>
             <div class="tab-pane fade show active" id="pills-home" role="tabpanel" aria-labelledby="pills-home-tab" style="color: green; text-decoration: underline">Login Realizado Com Sucesso!!!</div>
             </div>
+            <div class="tab-content" id="pills-tabContent">
+            <br>
+            <div class="tab-pane fade show active" id="pills-home" role="tabpanel" aria-labelledby="pills-home-tab" style="color: green; text-decoration: underline">Ultimo acesso: ${lastAcess || "Primeiro acesso"}</div>
+            </div>
+
 
         </body>
         </html>
 
     `);
 
+    
+    resposta.end();
+
 });
 
-server.get("/cadastroFornecedor", (requisicao, resposta)=>{
+server.get("/cadastroFornecedor", vereficaLogin, (requisicao, resposta)=>{
     resposta.send(`
 
          <!DOCTYPE html>
@@ -272,7 +376,7 @@ server.get("/cadastroFornecedor", (requisicao, resposta)=>{
 server.use(express.urlencoded({extended: true}));
 
 
-server.post('/cadastroFornecedor', (requisicao, resposta)=>{
+server.post('/cadastroFornecedor', vereficaLogin, (requisicao, resposta)=>{
     const cnpj= requisicao.body.cnpj;
     const razaoSocial= requisicao.body.razaoSocial;
     const nomeFantasia = requisicao.body.nomeFantasia;
@@ -455,7 +559,7 @@ server.post('/cadastroFornecedor', (requisicao, resposta)=>{
 
 
 
-server.get("/lista_cadastro", (requisicao, resposta)=>{
+server.get("/lista_cadastro", vereficaLogin, (requisicao, resposta)=>{
     let conteudo=`
         <!DOCTYPE html>
         <html>
